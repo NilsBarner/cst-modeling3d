@@ -5,7 +5,7 @@ from typing import Tuple
 import numpy as np
 from numpy.linalg import lstsq
 
-from scipy.special import factorial
+from scipy.special import comb, factorial
 
 from .math import (rotate, interp_from_curve, find_circle_3p,
                     cst_foil, clustcos, dist_clustcos, cst_curve)
@@ -615,7 +615,7 @@ def cst_foil_fit(xu: np.ndarray, yu: np.ndarray, xl: np.ndarray, yl: np.ndarray,
     cst_u = fit_curve(xu, yu, n_cst=n_cst, xn1=xn1, xn2=xn2)
     cst_l = fit_curve(xl, yl, n_cst=n_cst, xn1=xn1, xn2=xn2)
     return cst_u, cst_l
-
+"""
 def fit_curve(x: np.ndarray, y: np.ndarray, n_cst=7, xn1=0.5, xn2=1.0):
     '''
     Using least square method to fit a CST curve.
@@ -665,7 +665,35 @@ def fit_curve(x: np.ndarray, y: np.ndarray, n_cst=7, xn1=0.5, xn2=1.0):
     solution = lstsq(A, b, rcond=None)
 
     return solution[0]
+"""
+# """
+# Optimized fit_curve function
+def fit_curve(x, y, n_cst=7, xn1=0.5, xn2=1.0):
+    L  = x[-1] - x[0]
+    x_ = (x - x[0]) / L
+    y_ = (y - y[0]) / L
+    b  = y_ - x_ * y_[-1]
+    n = n_cst
+    k = np.arange(n)
+    # Use list comprehension for exact binomials
+    binoms = np.array([comb(n-1, ki, exact=True) for ki in k])
+    C = x_**xn1 * (1 - x_)**xn2
+    Xk = x_[:, None]**k
+    OneMinus = (1 - x_)[:, None]**(n-1-k)
+    A = C[:, None] * binoms[None, :] * Xk * OneMinus
+    ATA = A.T @ A
+    ATb = A.T @ b
+    return np.linalg.solve(ATA, ATb)
+    
+    # coeffs, *_ = np.linalg.lstsq(A, b, rcond=None)
+    # return coeffs
 
+    # α = 1e-4
+    # ATA = A.T @ A
+    # ATb = A.T @ b
+    # ATA_reg = ATA + α * np.eye(n)
+    # return np.linalg.solve(ATA_reg, ATb)
+# """
 def fit_curve_with_twist(x: np.ndarray, y: np.ndarray, n_cst=7, 
                          xn1=0.5, xn2=1.0) -> Tuple[np.ndarray, float, float, float]:
     '''
