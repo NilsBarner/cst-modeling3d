@@ -900,34 +900,217 @@ class Lofting_Revolution():
 
     '''
 
+    # def __init__(self, profiles: List[List[np.ndarray]],
+    #                 n_spanwise=101, 
+    #                 section_s_loc=[0.00, 0.25, 0.50, 0.75],
+    #                 section_x : Union[float, List[float]] = 0.0,
+    #                 section_radius : Union[float, List[float]] = 0.0,
+    #                 section_scale : Union[float, List[float]] = 1.0,
+    #                 ) -> None:
+
+    #     self.profiles = profiles
+    #     self.n_spanwise = n_spanwise
+    #     self.n_profile = len(profiles)
+    #     self.n_section = self.n_profile + 1
+                
+    #     self.n_point = profiles[0][0].shape[0]
+    #     self.n_total = self.n_profile * (n_spanwise-1) + 1
+        
+    #     self.section_radius = section_radius
+    #     self.section_x = section_x
+    #     self.section_scale = section_scale
+        
+    #     self.surfs : List[List[np.ndarray]] = []
+        
+    #     if len(section_s_loc) != self.n_profile:
+    #         raise ValueError('The number of profiles must be consistent with the number of section locations.')
+
+    #     self.check_profiles()
+
+    #     self.init_default_guide_curve(section_s_loc+[1.0])
+    
+    # =============================================================================
+    # in cst_modeling/operation.py, inside class Lofting_Revolution:
+
     def __init__(self, profiles: List[List[np.ndarray]],
-                    n_spanwise=101, 
+                    n_spanwise=101,
                     section_s_loc=[0.00, 0.25, 0.50, 0.75],
                     section_x : Union[float, List[float]] = 0.0,
                     section_radius : Union[float, List[float]] = 0.0,
                     section_scale : Union[float, List[float]] = 1.0,
+                    section_shape: str = "circle",        # new: "circle" or "superellipse"
+                    superellipse_exp: float = 2.0,        # new: exponent n (2 => circle/ellipse), 5 => superellipse n=5
+                    # =============================================================================
+                    section_radius_y: Union[float, None] = None,   # <-- NEW
+                    # =============================================================================
                     ) -> None:
 
         self.profiles = profiles
         self.n_spanwise = n_spanwise
         self.n_profile = len(profiles)
         self.n_section = self.n_profile + 1
-                
+
         self.n_point = profiles[0][0].shape[0]
         self.n_total = self.n_profile * (n_spanwise-1) + 1
-        
+
         self.section_radius = section_radius
+        # =============================================================================
+        self.section_radius_y = section_radius_y   # <-- NEW: store vertical half-height (b)
+        # =============================================================================
         self.section_x = section_x
         self.section_scale = section_scale
-        
+
+        # NEW: store shape selection
+        self.section_shape = section_shape
+        self.superellipse_exp = float(superellipse_exp)
+
         self.surfs : List[List[np.ndarray]] = []
-        
+
         if len(section_s_loc) != self.n_profile:
             raise ValueError('The number of profiles must be consistent with the number of section locations.')
 
         self.check_profiles()
 
         self.init_default_guide_curve(section_s_loc+[1.0])
+
+    # def _superellipse_point(self, angle: float, radius: float, n: float):
+    #     """
+    #     Return (y,z) coordinates for a superellipse of exponent n for the
+    #     given angle in radians and a nominal radius scale.  Uses the
+    #     parametric formulation:
+    #         y = radius * sign(cos t) * |cos t|^{2/n}
+    #         z = radius * sign(sin t) * |sin t|^{2/n}
+    #     If n == 2.0 behaviour is identical to circle (cos, sin).
+    #     """
+    #     if n == 2.0:
+    #         return radius * np.cos(angle), radius * np.sin(angle)
+    #     p = 2.0 / n
+    #     cy = np.cos(angle)
+    #     sy = np.sin(angle)
+    #     y = radius * np.sign(cy) * (np.abs(cy) ** p)
+    #     z = radius * np.sign(sy) * (np.abs(sy) ** p)
+    #     return y, z
+    
+    
+    def _superellipse_point(self, angle: float, a: float, b: float, n: float):
+        """
+        Return (y,z) point of an axis-aligned superellipse with
+        half-width a (x-direction) and half-height b (z-direction)
+        for param angle t.  Uses the parametric formulation:
+            y = a * sign(cos t) * |cos t|^{2/n}
+            z = b * sign(sin t) * |sin t|^{2/n}
+        """
+        if n == 2.0:
+            return a * np.cos(angle), b * np.sin(angle)
+        p = 2.0 / n
+        cy = np.cos(angle)
+        sy = np.sin(angle)
+        y = a * np.sign(cy) * (np.abs(cy) ** p)
+        z = b * np.sign(sy) * (np.abs(sy) ** p)
+        return y, z
+    
+
+    def init_default_guide_curve(self, section_s_loc: List[float]) -> None:
+        """
+        Initialize the default guide curve object.
+        It has a piecewise linear distribution along the span, defined by the section parameters.
+
+        This version supports both circular revolution (default) and a superellipse
+        revolution around the x-axis via the `section_shape` and `superellipse_exp`
+        attributes set in __init__.
+        """
+        self.guide_curve = GuideCurve(self.n_section, n_spanwise=self.n_spanwise, section_s_loc=section_s_loc)
+
+        #* Interpolate the radius, reference x of the sections
+        if isinstance(self.section_radius, float):
+            self.guide_curve.generate_with_value(radius=np.ones(self.n_total) * self.section_radius)
+        else:
+            self.guide_curve.generate_by_spline(self.section_s_loc, self.section_radius + [self.section_radius[0]],
+                                                key='radius', periodic=True)
+
+        if isinstance(self.section_x, float):
+            self.guide_curve.generate_with_value(x=np.ones(self.n_total) * self.section_x)
+        else:
+            self.guide_curve.generate_by_spline(self.section_s_loc, self.section_x + [self.section_x[0]],
+                                                key='x', periodic=True)
+
+        if isinstance(self.section_scale, float):
+            self.guide_curve.generate_with_value(scale=np.ones(self.n_total) * self.section_scale)
+        else:
+            self.guide_curve.generate_by_spline(self.section_s_loc, self.section_scale + [self.section_scale[0]],
+                                                key='scale', periodic=True)
+
+        # #* Calculate the reference point of the sections
+        # for i in range(self.n_total):
+        #     angle = 2 * np.pi * self.guide_curve.global_guide_curve['s'][i]
+        #     radius = self.guide_curve.global_guide_curve['radius'][i]
+
+
+        #     if getattr(self, "section_shape", "circle") == "superellipse":
+        #         y, z = self._superellipse_point(angle, radius, self.superellipse_exp)
+        #     else:
+        #         # default/circle behaviour
+        #         y = radius * np.cos(angle)
+        #         z = radius * np.sin(angle)
+
+        #     self.guide_curve.global_guide_curve['y'][i] = y
+        #     self.guide_curve.global_guide_curve['z'][i] = z
+        #     # keep existing rotation behaviour (keep rot_x for the profile orientation)
+        #     self.guide_curve.global_guide_curve['rot_x'][i] = np.rad2deg(angle)
+            
+            
+        #     # # compute desired *radial magnitude* (rscale) from the superellipse/circle
+        #     # if getattr(self, "section_shape", "circle") == "superellipse":
+        #     #     y_se, z_se = self._superellipse_point(angle, radius, self.superellipse_exp)
+        #     #     rscale = float(np.hypot(y_se, z_se))          # superellipse radial magnitude
+        #     # else:
+        #     #     # circle: radial magnitude equals radius
+        #     #     rscale = float(radius)
+            
+        #     # # Do NOT offset the profile center (leave y,z at 0) — we will scale the profile radius later.
+        #     # self.guide_curve.global_guide_curve['y'][i] = 0.0
+        #     # self.guide_curve.global_guide_curve['z'][i] = 0.0
+        #     # self.guide_curve.global_guide_curve['rot_x'][i] = np.rad2deg(angle)
+            
+        #     # # store the scalar radial scale for later use in sweep()
+        #     # # ensure the key exists before the loop (or create here)
+        #     # if 'rscale' not in self.guide_curve.global_guide_curve:
+        #     #     self.guide_curve.global_guide_curve['rscale'] = np.zeros(self.n_total)
+        #     # self.guide_curve.global_guide_curve['rscale'][i] = rscale
+        
+        
+        #* Calculate the reference point of the sections
+        # ensure rscale exists
+        self.guide_curve.global_guide_curve['rscale'] = np.zeros(self.n_total)
+        
+        for i in range(self.n_total):
+            angle = 2 * np.pi * self.guide_curve.global_guide_curve['s'][i]
+            radius_a = self.guide_curve.global_guide_curve['radius'][i]  # treated as 'a' (half-width)
+        
+            # determine 'b' (half-height); if not provided, use same as 'a'
+            if self.section_radius_y is not None:
+                b_val = float(self.section_radius_y)
+            else:
+                b_val = float(radius_a)
+        
+            # compute superellipse point for axis-aligned (a,b) and exponent n
+            if getattr(self, "section_shape", "circle") == "superellipse":
+                y_se, z_se = self._superellipse_point(angle, radius_a, b_val, self.superellipse_exp)
+            else:
+                # circle/ellipse: param with same a,b
+                y_se = radius_a * np.cos(angle)
+                z_se = b_val * np.sin(angle)
+        
+            # radial magnitude to scale profiles by
+            rscale = float(np.hypot(y_se, z_se))
+        
+            # do NOT offset profile centre — keep revolutions about axis origin
+            self.guide_curve.global_guide_curve['y'][i] = 0.0
+            self.guide_curve.global_guide_curve['z'][i] = 0.0
+            self.guide_curve.global_guide_curve['rot_x'][i] = np.rad2deg(angle)
+        
+            self.guide_curve.global_guide_curve['rscale'][i] = rscale
+    # =============================================================================
 
     @property
     def section_s_loc(self) -> List[float]:
@@ -946,51 +1129,51 @@ class Lofting_Revolution():
             if (self.profiles[i_prf][0].shape[0] != self.n_point) or (self.profiles[i_prf][1].shape[0] != self.n_point):
                 raise ValueError('The 2D profile must have the same number of points.')
 
-    def init_default_guide_curve(self, section_s_loc: List[float]) -> None:
-        '''
-        Initialize the default guide curve object.
-        It has a piecewise linear distribution along the span, defined by the section parameters.
+    # def init_default_guide_curve(self, section_s_loc: List[float]) -> None:
+    #     '''
+    #     Initialize the default guide curve object.
+    #     It has a piecewise linear distribution along the span, defined by the section parameters.
         
-        Parameters
-        ----------
-        section_s_loc : List[float] [n_section]
-            The parametric coordinates of the sections along the guide curve, range in [0, 1].
-        '''
+    #     Parameters
+    #     ----------
+    #     section_s_loc : List[float] [n_section]
+    #         The parametric coordinates of the sections along the guide curve, range in [0, 1].
+    #     '''
 
-        self.guide_curve = GuideCurve(self.n_section, n_spanwise=self.n_spanwise, section_s_loc=section_s_loc)
+    #     self.guide_curve = GuideCurve(self.n_section, n_spanwise=self.n_spanwise, section_s_loc=section_s_loc)
 
 
-        #* Interpolate the radius, reference x of the sections
+    #     #* Interpolate the radius, reference x of the sections
         
-        if isinstance(self.section_radius, float):
-            self.guide_curve.generate_with_value(radius=np.ones(self.n_total) * self.section_radius)
-        else:
-            self.guide_curve.generate_by_spline(self.section_s_loc, self.section_radius + [self.section_radius[0]], 
-                                                    key='radius', periodic=True)
+    #     if isinstance(self.section_radius, float):
+    #         self.guide_curve.generate_with_value(radius=np.ones(self.n_total) * self.section_radius)
+    #     else:
+    #         self.guide_curve.generate_by_spline(self.section_s_loc, self.section_radius + [self.section_radius[0]], 
+    #                                                 key='radius', periodic=True)
         
-        if isinstance(self.section_x, float):
-            self.guide_curve.generate_with_value(x=np.ones(self.n_total) * self.section_x)
-        else:
-            self.guide_curve.generate_by_spline(self.section_s_loc, self.section_x + [self.section_x[0]], 
-                                                    key='x', periodic=True)
+    #     if isinstance(self.section_x, float):
+    #         self.guide_curve.generate_with_value(x=np.ones(self.n_total) * self.section_x)
+    #     else:
+    #         self.guide_curve.generate_by_spline(self.section_s_loc, self.section_x + [self.section_x[0]], 
+    #                                                 key='x', periodic=True)
             
-        if isinstance(self.section_scale, float):
-            self.guide_curve.generate_with_value(scale=np.ones(self.n_total) * self.section_scale)
-        else:
-            self.guide_curve.generate_by_spline(self.section_s_loc, self.section_scale + [self.section_scale[0]],
-                                                    key='scale', periodic=True)
+    #     if isinstance(self.section_scale, float):
+    #         self.guide_curve.generate_with_value(scale=np.ones(self.n_total) * self.section_scale)
+    #     else:
+    #         self.guide_curve.generate_by_spline(self.section_s_loc, self.section_scale + [self.section_scale[0]],
+    #                                                 key='scale', periodic=True)
 
-        #* Calculate the reference point of the sections
+    #     #* Calculate the reference point of the sections
         
-        for i in range(self.n_total):
+    #     for i in range(self.n_total):
             
-            angle = 2 * np.pi * self.guide_curve.global_guide_curve['s'][i]
+    #         angle = 2 * np.pi * self.guide_curve.global_guide_curve['s'][i]
 
-            radius = self.guide_curve.global_guide_curve['radius'][i]
+    #         radius = self.guide_curve.global_guide_curve['radius'][i]
             
-            self.guide_curve.global_guide_curve['y'][i] = radius * np.cos(angle)
-            self.guide_curve.global_guide_curve['z'][i] = radius * np.sin(angle)
-            self.guide_curve.global_guide_curve['rot_x'][i] = np.rad2deg(angle)
+    #         self.guide_curve.global_guide_curve['y'][i] = radius * np.cos(angle)
+    #         self.guide_curve.global_guide_curve['z'][i] = radius * np.sin(angle)
+    #         self.guide_curve.global_guide_curve['rot_x'][i] = np.rad2deg(angle)
             
     def create_circumferential_profiles(self, kind='linear') -> List[List[np.ndarray]]:
         '''
@@ -1008,36 +1191,71 @@ class Lofting_Revolution():
             The profiles for transformation along the circumferential direction,
             i.e., [profile_x, profile_y].
         '''
+        # ss = self.guide_curve.global_guide_curve['s']
+        
+        # spanwise_profiles : List[List[np.ndarray]] = [[np.zeros(self.n_point), np.zeros(self.n_point)] for _ in range(self.n_total)]
+    
+        # for i_point in range(self.n_point):
+            
+        #     control_point_s = self.guide_curve.section_s_loc
+            
+        #     control_point_x = [self.profiles[i_prf][0][i_point] for i_prf in range(self.n_profile)] + [self.profiles[0][0][i_point]]
+        #     control_point_y = [self.profiles[i_prf][1][i_point] for i_prf in range(self.n_profile)] + [self.profiles[0][1][i_point]]
+            
+        #     if kind == 'periodic':
+                
+        #         func_x = CubicSpline(control_point_s, control_point_x, bc_type='periodic')
+        #         func_y = CubicSpline(control_point_s, control_point_y, bc_type='periodic')
+            
+        #     else:
+            
+        #         func_x = interp1d(control_point_s, control_point_x, kind=kind, fill_value='extrapolate')
+        #         func_y = interp1d(control_point_s, control_point_y, kind=kind, fill_value='extrapolate')
+            
+        #     xx = func_x(ss)
+        #     yy = func_y(ss)
+            
+        #     for i_span in range(self.n_total):
+                
+        #         spanwise_profiles[i_span][0][i_point] = xx[i_span]
+        #         spanwise_profiles[i_span][1][i_point] = yy[i_span]
+                
+        # return spanwise_profiles
+        
+        # =============================================================================
+        # inside create_circumferential_profiles, replace the control_point_x construction
+        # with a reference x that is used for every spanwise station.
+        
         ss = self.guide_curve.global_guide_curve['s']
         
         spanwise_profiles : List[List[np.ndarray]] = [[np.zeros(self.n_point), np.zeros(self.n_point)] for _ in range(self.n_total)]
-    
+        
+        # choose a reference x-profile (use first profile's x-array)
+        ref_x = self.profiles[0][0]
+        
         for i_point in range(self.n_point):
-            
+        
             control_point_s = self.guide_curve.section_s_loc
-            
-            control_point_x = [self.profiles[i_prf][0][i_point] for i_prf in range(self.n_profile)] + [self.profiles[0][0][i_point]]
+        
+            # DO NOT interpolate x across sections — use same x for all angles
+            # (keep behaviour for y as before)
             control_point_y = [self.profiles[i_prf][1][i_point] for i_prf in range(self.n_profile)] + [self.profiles[0][1][i_point]]
-            
+        
             if kind == 'periodic':
-                
-                func_x = CubicSpline(control_point_s, control_point_x, bc_type='periodic')
                 func_y = CubicSpline(control_point_s, control_point_y, bc_type='periodic')
-            
             else:
-            
-                func_x = interp1d(control_point_s, control_point_x, kind=kind, fill_value='extrapolate')
                 func_y = interp1d(control_point_s, control_point_y, kind=kind, fill_value='extrapolate')
-            
-            xx = func_x(ss)
+        
+            # x is constant for every spanwise station (no interpolation)
+            xx = np.ones(self.n_total) * ref_x[i_point]
             yy = func_y(ss)
-            
+        
             for i_span in range(self.n_total):
-                
                 spanwise_profiles[i_span][0][i_point] = xx[i_span]
                 spanwise_profiles[i_span][1][i_point] = yy[i_span]
-                
+        
         return spanwise_profiles
+        # =============================================================================
         
     def sweep(self, interp_profile_kind='linear') -> List[List[np.ndarray]]:
         '''
@@ -1071,20 +1289,75 @@ class Lofting_Revolution():
             
                 i_total = i_surf * (self.n_spanwise-1) + i_local
                 
-                profile_x = spanwise_profiles[i_total][0]
-                profile_y = spanwise_profiles[i_total][1]
+                # =============================================================================
+                # profile_x = spanwise_profiles[i_total][0]
+                # profile_y = spanwise_profiles[i_total][1]
             
+                # x0 = self.guide_curve('x')[i_total]
+                # y0 = self.guide_curve('y')[i_total]
+                # z0 = self.guide_curve('z')[i_total]
+            
+                # surf_x[i_local], surf_y[i_local], surf_z[i_local] = transform_curve(
+                #         profile_x, profile_y, 
+                #         dx=x0, dy=y0, dz=z0,
+                #         scale=self.guide_curve('scale')[i_total], 
+                #         rot_x=self.guide_curve('rot_x')[i_total])
+                
+                
+                # # # fetch interpolated profile for this spanwise station
+                # # profile_x = spanwise_profiles[i_total][0].copy()
+                # # profile_y = spanwise_profiles[i_total][1].copy()
+                
+                # # # radial target (computed earlier in init_default_guide_curve)
+                # # rscale = self.guide_curve.global_guide_curve.get('rscale', self.guide_curve.global_guide_curve['radius'])[i_total]
+                
+                # # # avoid division by zero
+                # # max_py = np.max(np.abs(profile_y)) if profile_y.size else 0.0
+                # # if max_py > 0.0:
+                # #     # scale the profile radial coordinate so its outermost point matches the rscale
+                # #     profile_y = profile_y * (rscale / max_py)
+                
+                # # # do not offset the centre (prevents toroidal hole). x offset is still applied.
+                # # x0 = self.guide_curve('x')[i_total]
+                # # y0 = 0.0
+                # # z0 = 0.0
+                
+                # # surf_x[i_local], surf_y[i_local], surf_z[i_local] = transform_curve(
+                # #         profile_x, profile_y,
+                # #         dx=x0, dy=y0, dz=z0,
+                # #         scale=self.guide_curve('scale')[i_total],
+                # #         rot_x=self.guide_curve('rot_x')[i_total])
+                
+                
+                # fetch interpolated profile for this spanwise station (copy because we'll modify)
+                profile_x = spanwise_profiles[i_total][0].copy()
+                profile_y = spanwise_profiles[i_total][1].copy()
+                
+                # radial target (computed earlier in init_default_guide_curve)
+                rscale = self.guide_curve.global_guide_curve.get('rscale', self.guide_curve.global_guide_curve['radius'])[i_total]
+                
+                # if profile doesn't touch axis, optionally remove its min so it can close
+                profile_y = profile_y - np.min(profile_y)
+                
+                # avoid division by zero
+                max_py = np.max(np.abs(profile_y)) if profile_y.size else 0.0
+                if max_py > 0.0:
+                    # scale the profile radial coordinate so its outermost point matches rscale
+                    profile_y = profile_y * (rscale / max_py)
+                
+                # revolve about origin (no center offset)
                 x0 = self.guide_curve('x')[i_total]
-                y0 = self.guide_curve('y')[i_total]
-                z0 = self.guide_curve('z')[i_total]
-            
+                y0 = 0.0
+                z0 = 0.0
+                
                 surf_x[i_local], surf_y[i_local], surf_z[i_local] = transform_curve(
-                        profile_x, profile_y, 
+                        profile_x, profile_y,
                         dx=x0, dy=y0, dz=z0,
-                        scale=self.guide_curve('scale')[i_total], 
+                        scale=self.guide_curve('scale')[i_total],
                         rot_x=self.guide_curve('rot_x')[i_total])
-            
+                # =============================================================================
+                    
             self.surfs.append([surf_x, surf_y, surf_z])
-        
+            
         return self.surfs
 

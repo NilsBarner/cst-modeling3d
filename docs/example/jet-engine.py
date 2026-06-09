@@ -6,6 +6,10 @@ import numpy as np
 import pandas as pd
 import math
 
+# NILS: added to prevent `FileNotFoundError: [Errno 2] No such file or directory: './dump/engine_outward.dat'`
+import sys
+sys.path.append('.')
+
 from cst_modeling.basic import BasicSection, BasicSurface
 from cst_modeling.section import cst_curve 
 
@@ -255,7 +259,8 @@ if __name__== "__main__":
     outward.flip(axis = '+Y')
     outward.flip(axis = '+X')
 
-    outward.output_tecplot(fname = './dump/engine_outward.dat')
+    # outward.output_tecplot(fname = './dump/engine_outward.dat')
+    outward.output_tecplot(fname='engine_outward.dat')
 
 
     #create inward
@@ -344,4 +349,5 @@ if __name__== "__main__":
     inward.flip(axis = '+Y')
     inward.flip(axis = '+X')
 
-    inward.output_tecplot(fname = './dump/engine_inward.dat')
+    # inward.output_tecplot(fname = './dump/engine_inward.dat')
+    inward.output_tecplot(fname='engine_inward.dat')  # NILS

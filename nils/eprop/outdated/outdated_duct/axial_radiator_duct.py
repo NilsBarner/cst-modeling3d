@@ -15,7 +15,6 @@ from cst_modeling.operation import Lofting_Revolution
 if __name__ == "__main__":
 
     path = os.path.dirname(sys.argv[0])
-    print('path =', path)
 
 
     #* Build an airfoil
@@ -36,16 +35,6 @@ if __name__ == "__main__":
     for i_profile in range(len(section_s_loc)):
         profiles.append([xx, yy])
 
-    nacelle = Lofting_Revolution(
-        profiles=profiles,
-        section_s_loc=section_s_loc,
-        section_x=0.0,
-        section_radius=0.25,
-        section_scale=1.0,
-        n_spanwise=21,
-    )
-    
-    # # =============================================================================
     # nacelle = Lofting_Revolution(
     #     profiles=profiles,
     #     section_s_loc=section_s_loc,
@@ -53,10 +42,20 @@ if __name__ == "__main__":
     #     section_radius=0.25,
     #     section_scale=1.0,
     #     n_spanwise=21,
-    #     section_shape='superellipse',   # <--- new
-    #     superellipse_exp=5.0,           # <--- exponent = 5
     # )
-    # # =============================================================================
+    
+    # =============================================================================
+    nacelle = Lofting_Revolution(
+        profiles=profiles,
+        section_s_loc=section_s_loc,
+        section_x=0.0,
+        section_radius=0.25,
+        section_scale=1.0,
+        n_spanwise=21,
+        section_shape='superellipse',   # <--- new
+        superellipse_exp=5.0,           # <--- exponent = 5
+    )
+    # =============================================================================
 
     surfs = nacelle.sweep(interp_profile_kind='linear')
 
@@ -64,16 +63,11 @@ if __name__ == "__main__":
         output_surface(surf, fname=os.path.join(path, 'nacelle-axisymmetric.dat'), ID=i_surf)
 
     # nacelle.guide_curve.output(os.path.join(path, 'nacelle-axisymmetric-guide-curve.dat'))
-
-    #%% NILS
+    
+    #%%
     
     import pyvista as pv
     
     mesh = pv.read(os.path.join(path, 'nacelle-axisymmetric.dat'))
     cpos = mesh.plot(border=True, border_color='k')
-    
-    
-    
-    
-    
-    
+

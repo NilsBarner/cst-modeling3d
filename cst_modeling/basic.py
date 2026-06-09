@@ -261,6 +261,24 @@ class BasicSection():
             self.x = np.concatenate((np.flip(xl_),xu_[1:]), axis=0)
             self.y = np.concatenate((np.flip(yl_),yu_[1:]), axis=0)
             self.z = np.ones_like(self.x)*self.zLE
+            
+        # =============================================================================
+        # NILS
+        # --- AFTER existing code sets self.x, self.y, self.z ---
+        # Ensure the 3D curve exists
+        if self.x.shape[0] <= 1:
+            raise Exception('The 3D curve (sec.x, sec.y, sec.z) is not successfully constructed')
+        
+        # --- NEW: apply rotation about the section leading edge if requested ---
+        # rotate() signature (used elsewhere in the code): rotate(x,y,z, angle=angle, origin=[xLE,yLE,zLE], axis='X'/'Y'/'Z')
+        origin = [self.xLE, self.yLE, self.zLE]
+        # Apply rot_x (rotation about X axis)
+        if hasattr(self, 'rot_x') and abs(self.rot_x) > 1e-12:
+            self.x, self.y, self.z = rotate(self.x, self.y, self.z, angle=self.rot_x, origin=origin, axis='X')
+        # Apply rot_y (rotation about Y axis)
+        if hasattr(self, 'rot_y') and abs(self.rot_y) > 1e-12:
+            self.x, self.y, self.z = rotate(self.x, self.y, self.z, angle=self.rot_y, origin=origin, axis='Y')
+        # =============================================================================
 
         if self.x.shape[0] <= 1:
             raise Exception('The 3D curve (sec.x, sec.y, sec.z) is not successfully constructed')
@@ -926,6 +944,8 @@ class BasicSurface():
                 bcx1 = (1,dxz1)
                 bcy1 = (1,dyz1)
 
+            # NILS: require that zz be strictly increasing;
+            # z-axis is my flow (x) axis
             curve_x = CubicSpline(zz, xx, bc_type=(bcx0, bcx1))
             
             if isinstance(dyn0, float) or isinstance(dyn0, int):

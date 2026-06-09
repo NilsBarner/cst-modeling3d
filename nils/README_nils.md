@@ -1,0 +1,97 @@
+# nils
+
+## eprop
+
+### axial
+
+Current state:
+noflow_nacelle_axial_ducted_radiator_integrator.py
+- noflow_nacelle_geometry_generator -> generate_noflow_nacelle_geometry
+- axial_ducted_radiator_geometry_generator.py -> generate_axial_ducted_radiator_geometry
+- fairing_geometry_generator.py -> generate_fairing_geometry
+- actuator_disk_geometry_generator.py -> generate_actuator_disk_geometry
+
+Envisaged additions:
+- Wrap noflow_nacelle_axial_ducted_radiator_integrator.py into integrate_noflow_nacelle_axial_ducted_radiator method
+- Create test_noflow_nacelle_axial_ducted_radiator_integrator.py calling integrate_noflow_nacelle_axial_ducted_radiator
+- Create noflow_nacelle_axial_ducted_radiator_plotter.py
+- Create test_noflow_nacelle_geometry_generator.py calling generate_noflow_nacelle_geometry
+- Create test_axial_ducted_radiator_geometry_generator.py calling generate_axial_ducted_radiator_geometry
+- Create test_fairing_geometry_generator.py calling generate_fairing_geometry
+- Create test_actuator_disk_geometry_generator.py calling generate_actuator_disk_geometry
+
+### inclined
+
+Current state:
+noflow_nacelle_inclined_ducted_radiator_integrator.py
+- noflow_nacelle_geometry_generator.py -> generate_noflow_nacelle_geometry
+- inclined_ducted_radiator_geometry_generator -> generate_inclined_ducted_radiator_geometry
+- actuator_disk_geometry_generator -> generate_actuator_disk_geometry
+
+Envisaged additions:
+- Wrap noflow_nacelle_inclined_ducted_radiator_integrator.py into integrate_noflow_nacelle_inclined_ducted_radiator method
+- Create test_noflow_nacelle_inclined_ducted_radiator_integrator.py calling integrate_noflow_nacelle_inclined_ducted_radiator
+- Create noflow_nacelle_inclined_ducted_radiator_plotter.py
+- Create test_inclined_ducted_radiator_geometry_generator.py calling generate_inclined_ducted_radiator_geometry
+
+### radial
+
+Current state:
+noflow_nacelle_radial_ducted_radiator_integrator.py
+- noflow_nacelle_geometry_generator.py -> generate_noflow_nacelle_geometry
+- radial_ducted_radiator_geometry_generator.py -> generate_noflow_nacelle_geometry
+- actuator_disk_geometry_generator.py -> generate_actuator_disk_geometry
+
+Envisaged additions:
+- Wrap noflow_nacelle_radial_ducted_radiator_integrator.py into integrate_noflow_nacelle_radial_ducted_radiator method
+- Create test_noflow_nacelle_radial_ducted_radiator_integrator.py calling integrate_noflow_nacelle_radial_ducted_radiator
+- Create noflow_nacelle_radial_ducted_radiator_plotter.py
+- Create test_radial_ducted_radiator_geometry_generator.py calling generate_noflow_nacelle_geometry
+
+## edf
+
+### series
+
+Current state:
+series_edf_geometry_generator.py -> series_edf_geometry_generator
+- series_edf_profile.py -> PoweredNacelleProfile
+
+Envisaged additions:
+- Create test_series_edf_geometry_generator.py calling series_edf_geometry_generator
+- Wrap series_edf_plotter.py into plot_series_edf method
+
+### inner_parallel
+
+Current state:
+inner_parallel_edf_axial_ducted_radiator_integrator.py
+- parallel_edf_geometry_generator.py -> generate_parallel_edf_geometry
+- annular_axial_ducted_radiator_geometry_generator.py -> generate_annular_axial_ducted_radiator_geometry
+
+Envisaged additions:
+- Wrap inner_parallel_edf_axial_ducted_radiator_integrator.py into integrate_inner_parallel_edf_axial_ducted_radiator method
+- Create test_inner_parallel_edf_axial_ducted_radiator_integrator.py calling integrate_inner_parallel_edf_axial_ducted_radiator
+- Create test_parallel_edf_geometry_generator.py calling generate_parallel_edf_geometry
+- Create inner_parallel_edf_axial_ducted_radiator_plotter.py and wrap into plot_inner_parallel_edf_axial_ducted_radiator method
+- Create test_annular_axial_ducted_radiator_geometry_generator.py calling generate_annular_axial_ducted_radiator_geometry
+
+### outer_parallel
+
+Current state:
+outer_parallel_edf_axial_ducted_radiator_integrator.py
+- parallel_edf_geometry_generator.py -> generate_parallel_edf_geometry
+- half_axial_ducted_radiator_geometry_generator.py -> generate_half_axial_ducted_radiator_geometry
+
+Envisaged additions:
+- Wrap outer_parallel_edf_axial_ducted_radiator_integrator.py into integrate_outer_parallel_edf_axial_ducted_radiator method
+- Create test_outer_parallel_edf_axial_ducted_radiator_integrator.py calling integrate_outer_parallel_edf_axial_ducted_radiator
+- Create test_half_axial_ducted_radiator_geometry_generator.py calling generate_half_axial_ducted_radiator_geometry
+- Wrap outer_parallel_edf_axial_ducted_radiator_plotter.py into plot_outer_parallel_edf_axial_ducted_radiator method
+
+### bypass
+
+Current state:
+bypass_edf_geometry_generator.py -> generate_bypass_edf_geometry
+
+Envisaged additions:
+- Create test_bypass_edf_geometry_generator.py calling generate_bypass_edf_geometry
+- Wrap bypass_edf_plotter.py into plot_bypass_edf method

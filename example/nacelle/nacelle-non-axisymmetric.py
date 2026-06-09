@@ -74,10 +74,12 @@ if __name__ == "__main__":
         )
         
         profile_x, profile_y = nacelle_profile.get_profile()
+        # print('profile_x =', profile_x)
+        # sys.exit()
         
         profiles.append([profile_x, profile_y])
         
-        #nacelle_profile.plot(show=True)
+        nacelle_profile.plot(show=True)
     
     
     #* Nacelle surface of revolution
@@ -95,4 +97,11 @@ if __name__ == "__main__":
 
     for i_surf, surf in enumerate(surfs):
         output_surface(surf, fname=os.path.join(path, 'nacelle-non-axisymmetric.dat'), ID=i_surf)
+    
+    #%% NILS
+    
+    import pyvista as pv
+    
+    mesh = pv.read(os.path.join(path, 'nacelle-non-axisymmetric.dat'))
+    cpos = mesh.plot(border=True, border_color='k')
 
